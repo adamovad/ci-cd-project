@@ -273,6 +273,15 @@ sudo ./svc.sh start
 
 (`<runner-user>` בהמשך הוא המשתמש שמריץ את ה-self-hosted runner, למשל `ubuntu` או `student`).
 
+**חשוב:** `python3 -m venv` דורש שהחבילה `python3-venv` (בחלק מהגרסאות בשם ספציפי כמו `python3.14-venv`) תהיה מותקנת מראש על ה-VM – אחרת ה-deploy job ייכשל עם `ensurepip is not available`. זו התקנת חבילת מערכת (`apt install`), ולכן עושים אותה **פעם אחת, ידנית**, ולא כחלק מה-CI (כדי לא להרחיב הרשאות `sudo` ללא סיסמה לפקודות התקנת חבילות):
+
+```bash
+sudo apt update
+sudo apt install -y python3-venv
+```
+
+(בדקו את שם החבילה המדויק לפי גרסת ה-Python שמותקנת – השגיאה עצמה, אם תופיע, מציינת את השם הנכון).
+
 **6. יצירת systemd service על ה-VM**
 
 ```bash
