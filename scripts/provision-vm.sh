@@ -37,8 +37,10 @@ Options:
   --db-user <name>        MySQL user (default: student_user)
   --db-password <pass>    MySQL password (or set DB_PASSWORD env var, or omit to be prompted)
 
-  --repo <owner/name>     GitHub repo, e.g. eyalyehia/ci-cd-project (needed for runner + default working dir)
-  --runner-token <token>  runner registration token (or set RUNNER_TOKEN env var):
+  --repo <owner/name>     GitHub repo, e.g. eyalyehia/ci-cd-project (needed for runner + default working
+                          dir; omit to be prompted, unless --skip-runner and --working-dir are both set)
+  --runner-token <token>  runner registration token, freshly generated per run - omit to be prompted
+                          (or set RUNNER_TOKEN env var). Get one with:
                           gh api -X POST repos/<owner>/<repo>/actions/runners/registration-token --jq .token
   --runner-dir <path>     runner install dir (default: \$HOME/actions-runner)
   --working-dir <path>    override the systemd WorkingDirectory (default: derived from --repo)
@@ -77,14 +79,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ ( "$SKIP_RUNNER" == false || "$SKIP_SERVICE" == false ) && -z "$REPO" ]]; then
+  read -rp "GitHub repo (owner/name), e.g. eyalyehia/ci-cd-project: " REPO
+fi
+
+if [[ "$SKIP_RUNNER" == false && -z "$RUNNER_TOKEN" ]]; then
+  read -rsp "Runner registration token (Settings > Actions > Runners > New self-hosted runner, or: gh api -X POST repos/$REPO/actions/runners/registration-token --jq .token): " RUNNER_TOKEN
+  echo
+fi
+
 if [[ -z "$WORKING_DIR" && -n "$REPO" ]]; then
   repo_name="${REPO##*/}"
   WORKING_DIR="$RUNNER_DIR/_work/$repo_name/$repo_name"
-fi
-
-if [[ "$SKIP_RUNNER" == false && ( -z "$REPO" || -z "$RUNNER_TOKEN" ) ]]; then
-  echo "Error: --repo and --runner-token (or RUNNER_TOKEN env var) are required unless --skip-runner." >&2
-  exit 1
 fi
 
 if [[ "$SKIP_SERVICE" == false && -z "$WORKING_DIR" ]]; then
