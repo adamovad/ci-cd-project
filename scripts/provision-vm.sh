@@ -9,7 +9,7 @@ DB_USER="student_user"
 DB_PASSWORD="${DB_PASSWORD:-}"
 RUNNER_DIR="$HOME/actions-runner"
 RUNNER_USER="$(whoami)"
-RUNNER_VERSION="2.319.0"
+RUNNER_VERSION=""
 REPO=""
 WORKING_DIR=""
 RUNNER_TOKEN="${RUNNER_TOKEN:-}"
@@ -43,6 +43,7 @@ Options:
                           (or set RUNNER_TOKEN env var). Get one with:
                           gh api -X POST repos/<owner>/<repo>/actions/runners/registration-token --jq .token
   --runner-dir <path>     runner install dir (default: \$HOME/actions-runner)
+  --runner-version <ver>  runner release version, e.g. 2.336.0 (default: auto-detect latest)
   --working-dir <path>    override the systemd WorkingDirectory (default: derived from --repo)
 
   --skip-mysql            don't install/configure MySQL
@@ -67,6 +68,7 @@ while [[ $# -gt 0 ]]; do
     --repo) REPO="$2"; shift 2 ;;
     --runner-token) RUNNER_TOKEN="$2"; shift 2 ;;
     --runner-dir) RUNNER_DIR="$2"; shift 2 ;;
+    --runner-version) RUNNER_VERSION="$2"; shift 2 ;;
     --working-dir) WORKING_DIR="$2"; shift 2 ;;
     --skip-mysql) SKIP_MYSQL=true; shift ;;
     --skip-nginx) SKIP_NGINX=true; shift ;;
@@ -161,6 +163,15 @@ if [[ "$SKIP_RUNNER" == false ]]; then
     aarch64|arm64) runner_arch="arm64" ;;
     *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
   esac
+  if [[ -z "$RUNNER_VERSION" ]]; then
+    RUNNER_VERSION="$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest \
+      | grep -m1 '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')"
+    if [[ -z "$RUNNER_VERSION" ]]; then
+      echo "Error: couldn't auto-detect the latest runner version; pass --runner-version explicitly." >&2
+      exit 1
+    fi
+    echo "    Using latest runner version: $RUNNER_VERSION"
+  fi
   mkdir -p "$RUNNER_DIR"
   if [[ ! -f "$RUNNER_DIR/config.sh" ]]; then
     tarball="actions-runner-linux-${runner_arch}-${RUNNER_VERSION}.tar.gz"
