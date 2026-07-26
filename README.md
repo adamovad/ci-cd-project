@@ -267,7 +267,13 @@ sudo ./svc.sh start
 | `DB_PASSWORD` | `your_password` |
 | `DB_NAME` | `student_portal` |
 
-**5. יצירת systemd service על ה-VM**
+**5. Virtual environment ל-Python**
+
+בגרסאות Ubuntu/Debian עדכניות, `pip install` ישירות למערכת נכשל עם `error: externally-managed-environment` (PEP 668). הפתרון: venv קבוע מחוץ לתיקיית ה-checkout (כדי שלא יימחק בכל checkout מחדש), ששני הצדדים משתמשים בו – ה-`deploy` job (ראו שלב 8) יוצר/מעדכן אותו בכל ריצה עם `python3 -m venv`, וה-systemd service (שלב 6) מריץ את השרת דרכו.
+
+(`<runner-user>` בהמשך הוא המשתמש שמריץ את ה-self-hosted runner, למשל `ubuntu` או `student`).
+
+**6. יצירת systemd service על ה-VM**
 
 ```bash
 sudo nano /etc/systemd/system/student-portal.service
@@ -287,7 +293,7 @@ Environment="DB_HOST=localhost"
 Environment="DB_USER=student_user"
 Environment="DB_PASSWORD=your_password"
 Environment="DB_NAME=student_portal"
-ExecStart=/usr/bin/python3 -m uvicorn app.main_v2_mysql:app --host 0.0.0.0 --port 8000
+ExecStart=/home/<runner-user>/venvs/student-portal/bin/python -m uvicorn app.main_v2_mysql:app --host 0.0.0.0 --port 8000
 Restart=always
 
 [Install]
@@ -304,7 +310,7 @@ sudo systemctl status student-portal
 curl http://localhost:8000/health
 ```
 
-**6. הרשאת sudo ללא סיסמה ל-deploy job**
+**7. הרשאת sudo ללא סיסמה ל-deploy job**
 
 ה-self-hosted runner רץ כ-service ברקע, ללא terminal אינטראקטיבי. לכן כשה-`deploy` job מריץ `sudo systemctl restart student-portal`, אם `sudo` דורש סיסמה – ה-step ייתקע או ייכשל. יש להרשות למשתמש שמריץ את ה-runner (למשל `ubuntu`) להריץ את הפקודה הספציפית הזו בלי סיסמה:
 
@@ -324,7 +330,7 @@ ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart student-portal
 sudo -n systemctl restart student-portal && echo "עובד בלי סיסמה"
 ```
 
-**7. עדכון `ci.yml` לשלב ב:**
+**8. עדכון `ci.yml` לשלב ב:**
 
 ```yaml
 name: Student Portal CI/CD
@@ -393,10 +399,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up virtualenv
+        run: |
+          python3 -m venv /home/<runner-user>/venvs/student-portal
+
       - name: Install dependencies
         run: |
-          pip3 install -r 04-project/requirements.txt
-          pip3 install mysql-connector-python
+          /home/<runner-user>/venvs/student-portal/bin/pip install -r 04-project/requirements.txt
+          /home/<runner-user>/venvs/student-portal/bin/pip install mysql-connector-python
 
       - name: Restart service
         run: |
@@ -408,7 +418,7 @@ jobs:
           curl -f http://localhost:8000/health
 ```
 
-**8. Push ובדיקה**
+**9. Push ובדיקה**
 
 ```bash
 git add .github/workflows/ci.yml
