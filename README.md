@@ -304,7 +304,27 @@ sudo systemctl status student-portal
 curl http://localhost:8000/health
 ```
 
-**6. עדכון `ci.yml` לשלב ב:**
+**6. הרשאת sudo ללא סיסמה ל-deploy job**
+
+ה-self-hosted runner רץ כ-service ברקע, ללא terminal אינטראקטיבי. לכן כשה-`deploy` job מריץ `sudo systemctl restart student-portal`, אם `sudo` דורש סיסמה – ה-step ייתקע או ייכשל. יש להרשות למשתמש שמריץ את ה-runner (למשל `ubuntu`) להריץ את הפקודה הספציפית הזו בלי סיסמה:
+
+```bash
+sudo visudo -f /etc/sudoers.d/student-portal
+```
+
+הכניסו שורה אחת בדיוק (התאימו את שם המשתמש לפי מי שמריץ את ה-runner):
+
+```
+ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart student-portal
+```
+
+בדיקה שזה עבד:
+
+```bash
+sudo -n systemctl restart student-portal && echo "עובד בלי סיסמה"
+```
+
+**7. עדכון `ci.yml` לשלב ב:**
 
 ```yaml
 name: Student Portal CI/CD
@@ -388,7 +408,7 @@ jobs:
           curl -f http://localhost:8000/health
 ```
 
-**7. Push ובדיקה**
+**8. Push ובדיקה**
 
 ```bash
 git add .github/workflows/ci.yml

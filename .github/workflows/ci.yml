@@ -1,9 +1,7 @@
-name: Student Portal CI
+name: Student Portal CI/CD
 
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
 
 jobs:
@@ -47,5 +45,27 @@ jobs:
       - name: Start server and health check
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 3
+          curl -f http://localhost:8000/health
+
+  deploy:
+    runs-on: self-hosted
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pip3 install -r requirements.txt
+          pip3 install mysql-connector-python
+
+      - name: Restart service
+        run: |
+          sudo systemctl restart student-portal
+
+      - name: Health check
+        run: |
           sleep 3
           curl -f http://localhost:8000/health
