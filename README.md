@@ -68,14 +68,15 @@ push to main
 ## מבנה ה-Repo
 
 ```
-04-project/
-├── project.md          ← המסמך הזה
+.
+├── README.md            ← המסמך הזה
 ├── app/
-│   ├── main.py         ← גרסת JSON (שלב א)
+│   ├── main.py          ← גרסת JSON (שלב א)
 │   └── main_v2_mysql.py ← גרסת MySQL (שלב ב)
 ├── tests/
-│   └── test_main.py    ← 9 טסטים
-└── requirements.txt    ← תלויות Python
+│   └── test_main.py     ← 9 טסטים
+├── requirements.txt     ← תלויות Python
+└── students.json        ← קובץ הנתונים לגרסת ה-JSON (שלב א)
 ```
 
 > **שימו לב:** `.github/workflows/` לא קיים ב-repo – **אתם יוצרים אותו** כחלק מהפרויקט.
@@ -97,7 +98,7 @@ push to main
 
 ```bash
 git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>/04-project
+cd <repo-name>
 ```
 
 **2. צרו את תיקיית ה-workflow**
@@ -138,11 +139,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r 04-project/requirements.txt
+          pip install -r requirements.txt
 
       - name: Run tests
         run: |
-          cd 04-project
           pytest tests/ -v
 
   build:
@@ -160,11 +160,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r 04-project/requirements.txt
+          pip install -r requirements.txt
 
       - name: Start server and health check
         run: |
-          cd 04-project
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
           curl -f http://localhost:8000/health
@@ -296,8 +295,8 @@ Description=Student Portal FastAPI
 After=network.target mysql.service
 
 [Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/<repo-name>/04-project
+User=<runner-user>
+WorkingDirectory=/home/<runner-user>/actions-runner/_work/<repo-name>/<repo-name>
 Environment="DB_HOST=localhost"
 Environment="DB_USER=student_user"
 Environment="DB_PASSWORD=your_password"
@@ -309,15 +308,18 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
+`<runner-user>` הוא המשתמש שמריץ את ה-self-hosted runner (למשל `ubuntu` או `student` – בדקו עם `whoami` בתיקיית ה-runner). ה-`WorkingDirectory` מצביע לתיקייה שבה `actions/checkout` מניח את הקוד בכל ריצת workflow – מבנה קבוע: `<runner-dir>/_work/<repo-name>/<repo-name>`.
+
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable student-portal
-sudo systemctl start student-portal
 
 # בדיקה
 sudo systemctl status student-portal
 curl http://localhost:8000/health
 ```
+
+**חשוב:** אין להריץ `systemctl start` בשלב הזה – התיקייה `_work/...` עדיין לא קיימת (היא נוצרת רק כשה-`deploy` job רץ בפעם הראשונה עם `actions/checkout`). אם תריצו `start` עכשיו הוא ייכשל, וזה תקין וצפוי. מספיק `enable` – ה-`deploy` job עצמו יריץ `restart` בסוף ואז השירות יעלה בהצלחה.
 
 **7. הרשאת sudo ללא סיסמה ל-deploy job**
 
@@ -330,7 +332,7 @@ sudo visudo -f /etc/sudoers.d/student-portal
 הכניסו שורה אחת בדיוק (התאימו את שם המשתמש לפי מי שמריץ את ה-runner):
 
 ```
-ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart student-portal
+<runner-user> ALL=(ALL) NOPASSWD: /bin/systemctl restart student-portal
 ```
 
 בדיקה שזה עבד:
@@ -363,11 +365,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r 04-project/requirements.txt
+          pip install -r requirements.txt
 
       - name: Run tests
         run: |
-          cd 04-project
           pytest tests/ -v
 
   build:
@@ -385,11 +386,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r 04-project/requirements.txt
+          pip install -r requirements.txt
 
       - name: Start server and health check
         run: |
-          cd 04-project
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
           curl -f http://localhost:8000/health
@@ -414,7 +414,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          /home/<runner-user>/venvs/student-portal/bin/pip install -r 04-project/requirements.txt
+          /home/<runner-user>/venvs/student-portal/bin/pip install -r requirements.txt
           /home/<runner-user>/venvs/student-portal/bin/pip install mysql-connector-python
 
       - name: Restart service
